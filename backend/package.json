@@ -1,18 +1,35 @@
 {
   "name": "backend",
   "version": "1.0.0",
+<<<<<<< HEAD
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+=======
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev":"nodemon server.js"
+>>>>>>> e1c2649b2933d8bfdef3c0f70d5144abdcf90d3f
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+<<<<<<< HEAD
   "description": "",
   "dependencies": {
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "mongoose": "^8.16.4"
+=======
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "nodemon": "^3.1.10"
+>>>>>>> e1c2649b2933d8bfdef3c0f70d5144abdcf90d3f
   }
 }
