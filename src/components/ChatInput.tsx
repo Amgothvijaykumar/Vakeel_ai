@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 import { Settings2, Paperclip, ImagePlus, Smile, Mic, Send } from 'lucide-react';
 import { useChatCommand } from '../hooks/useChatCommand'; // Import the new hook
 
@@ -27,7 +27,7 @@ export default function ChatInput({ onSendMessage, onClearChat, onDeleteLastMess
     }
   }, [text]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmedText = text.trim();
     if (!trimmedText) return;
@@ -43,10 +43,10 @@ export default function ChatInput({ onSendMessage, onClearChat, onDeleteLastMess
     setText('');
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as unknown as React.FormEvent);
+  handleSubmit(e as unknown as FormEvent);
     }
   };
 

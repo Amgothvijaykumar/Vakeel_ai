@@ -32,19 +32,19 @@ export default function ChatMessage({ message, showToast }: ChatMessageProps) {
   };
 
   return (
-    <div className={`group/message flex items-start gap-2 sm:gap-4 animate-fade-in ${sender === 'user' ? 'justify-end' : ''}`}>
+  <div className={`group/message flex items-start gap-2 sm:gap-4 animate-fade-in ${sender === 'user' ? 'justify-end' : ''}`}>
       {sender === 'ai' && (
         <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-bg-sidebar flex items-center justify-center">
           <img src="/mlc-logo.png" alt="AI Avatar" className="w-6 h-6 sm:w-7 sm:h-7 p-0.5" />
         </div>
       )}
-      <div className={`relative rounded-lg text-text-primary max-w-[85%] sm:max-w-[75%] md:max-w-2xl ${sender === 'user' ? 'bg-send-blue text-white' : 'bg-bg-sidebar'}`}>
-        {parts.map((part, index) => {
-          if (index % 3 === 2) {
-            const language = parts[index - 1] || 'text';
-            return <CodeBlock key={index} language={language} code={part.trim()} showToast={showToast} />;
-          } else if (index % 3 === 0 && part.trim()) {
-            return <p key={index} className="px-3 py-2 sm:px-4 sm:py-3 whitespace-pre-wrap break-words">{part.trim()}</p>;
+  <div className={`relative rounded-lg text-text-primary max-w-[85%] sm:max-w-[75%] md:max-w-2xl ${sender === 'user' ? 'bg-send-blue text-white' : 'bg-bg-sidebar'}`}>
+        {parts.map((part, i) => {
+          if (i % 3 === 2) {
+            const language = parts[i - 1] || 'text';
+            return <CodeBlock key={i} language={language} code={part.trim()} showToast={showToast} />;
+          } else if (i % 3 === 0 && part.trim()) {
+            return <p key={i} className="px-3 py-2 sm:px-4 sm:py-3 whitespace-pre-wrap break-words">{part.trim()}</p>;
           }
           return null;
         })}
@@ -69,7 +69,9 @@ export default function ChatMessage({ message, showToast }: ChatMessageProps) {
       </div>
     </div>
   );
-}const CodeBlock = ({ language, code, showToast }: { language: string; code: string; showToast: (message: string, type?: ToastType) => void }) => {
+}
+
+const CodeBlock = ({ language, code, showToast }: { language: string; code: string; showToast: (message: string, type?: ToastType) => void }) => {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async () => {

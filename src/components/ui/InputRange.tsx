@@ -1,4 +1,4 @@
-import React from 'react';
+import type { ChangeEvent } from 'react';
 
 interface InputRangeProps {
   title: string;
@@ -6,7 +6,7 @@ interface InputRangeProps {
   min: string;
   max: string;
   step: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
 export function InputRange({ title, value, ...props }: InputRangeProps) {

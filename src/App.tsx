@@ -1,11 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import IconBar from './components/IconBar';
 import Sidebar from './components/Sidebar';
 import ChatPanel from './components/ChatPanel';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
+import SignIn from './pages/SignIn';
+import SignUp from './pages/SignUp.new';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import OAuthFinish from './pages/OAuthFinish';
+import ProtectedRoute from './components/ProtectedRoute';
+import Landing from './pages/Landing';
 import { ToastContainer } from './components/Toast';
 import type { Toast } from './components/Toast';
+import { getAuthToken } from './utils/auth';
+import { listConversations, createConversationApi, renameConversationApi, deleteConversationApi } from './utils/conversations';
 
 export interface Message {
   sender: 'user' | 'ai';
@@ -19,24 +28,7 @@ export interface Conversation {
   date: string;
 }
 
-const initialConversations: Conversation[] = [
-  {
-    id: 'conv-1',
-    title: 'Contract Analysis Case #142',
-    date: '10/13/2025, 1:10 AM',
-    messages: [
-      { sender: 'ai', text: 'Hello! As your AI Legal Assistant, how can I help you today?' },
-    ],
-  },
-  {
-    id: 'conv-2',
-    title: 'Initial Consultation',
-    date: '10/12/2025, 4:30 PM',
-    messages: [
-      { sender: 'ai', text: 'Welcome to your initial consultation.' },
-    ],
-  },
-];
+const initialConversations: Conversation[] = [];
 
 export const Theme = {
   Light: "light",
@@ -61,6 +53,7 @@ function App() {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [user, setUser] = useState<{ name: string; email: string; profilePhoto?: string } | null>(null);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
@@ -79,6 +72,54 @@ function App() {
     }
   }, [config.theme]);
 
+  // Fetch current user profile when authenticated and listen for profile/auth updates
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+        const res = await fetch('/auth/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) setUser({
+            name: data.user.name,
+            email: data.user.email,
+            profilePhoto: data.user.profilePhoto,
+          });
+        }
+      } catch {
+        // ignore for shell
+      }
+    }
+
+    loadUser();
+
+    function onProfileUpdated(e: any) {
+      const updated = e?.detail;
+      if (updated && (updated.name || updated.email || updated.profilePhoto !== undefined)) {
+        setUser((prev) => ({
+          name: updated.name ?? prev?.name ?? '',
+          email: updated.email ?? prev?.email ?? '',
+          profilePhoto: updated.profilePhoto ?? prev?.profilePhoto,
+        }));
+      }
+    }
+
+    function onAuthLogin() {
+      // Re-fetch profile after login/signup using the newest token
+      loadUser();
+    }
+
+    window.addEventListener('profile:updated', onProfileUpdated);
+    window.addEventListener('auth:login', onAuthLogin);
+    return () => {
+      window.removeEventListener('profile:updated', onProfileUpdated);
+      window.removeEventListener('auth:login', onAuthLogin);
+    };
+  }, []);
+
   const showToast = (message: string, type: Toast['type'] = 'success') => {
     const id = `toast-${Date.now()}`;
     setToasts(prev => [...prev, { id, message, type }]);
@@ -94,27 +135,31 @@ function App() {
     setConfig(newConfig);
   };
 
-  const handleNewConversation = () => {
-    const newId = `conv-${Date.now()}`;
-    const newConv: Conversation = {
-      id: newId,
-      title: `New Conversation ${conversations.length + 1}`,
-      date: new Date().toLocaleString(),
-      messages: [
-        { sender: 'ai', text: 'Hello! As your AI Legal Assistant, how can I help you today?' },
-      ],
-    };
-    setConversations(prev => [newConv, ...prev]);
-    setActiveConversationId(newId);
-    setIsSidebarOpen(false);
-    showToast('New conversation created', 'success');
+  const createConversation = async (opts?: { silent?: boolean; title?: string }) => {
+    const silent = opts?.silent ?? false;
+    const title = opts?.title ?? `New Conversation`;
+    try {
+      const created = await createConversationApi(title);
+      const newConv: Conversation = { id: created.id, title: created.title, date: created.date, messages: [] };
+      setConversations(prev => [newConv, ...prev]);
+      setActiveConversationId(newConv.id);
+      setIsSidebarOpen(false);
+      if (!silent) showToast('New conversation created', 'success');
+    } catch (e:any) {
+      showToast('Failed to create conversation', 'error');
+    }
   };
 
-  const handleRenameConversation = (id: string, newTitle: string) => {
-    setConversations(prev =>
-      prev.map(conv => (conv.id === id ? { ...conv, title: newTitle } : conv))
-    );
-    showToast('Conversation renamed successfully', 'success');
+  const handleNewConversation = () => { void createConversation(); };
+
+  const handleRenameConversation = async (id: string, newTitle: string) => {
+    try {
+      await renameConversationApi(id, newTitle);
+      setConversations(prev => prev.map(conv => (conv.id === id ? { ...conv, title: newTitle } : conv)));
+      showToast('Conversation renamed successfully', 'success');
+    } catch {
+      showToast('Failed to rename conversation', 'error');
+    }
   };
 
   const handleNewMessage = (newMessage: Message) => {
@@ -126,6 +171,52 @@ function App() {
       )
     );
   };
+
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversationApi(id);
+      setConversations(prev => prev.filter(c => c.id !== id));
+      // Select next available conversation or create a new one
+      setTimeout(async () => {
+        const remaining = conversations.filter(cv => cv.id !== id);
+        if (remaining.length > 0) {
+          setActiveConversationId(remaining[0].id);
+        } else {
+          await createConversation({ silent: true });
+        }
+      }, 0);
+      showToast('Conversation deleted', 'success');
+    } catch {
+      showToast('Failed to delete conversation', 'error');
+    }
+  };
+
+  // Delete Q+A feature removed per request
+
+  // Create or load conversations once on first mount (guarded against StrictMode double-effect)
+  const didInitRef = useRef(false);
+  useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+    (async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) return; // not signed in yet
+        const list = await listConversations();
+        if (list && list.length > 0) {
+          const mapped = list.map(it => ({ id: it.id, title: it.title, date: it.date, messages: it.messages }));
+          setConversations(mapped);
+          setActiveConversationId(mapped[0].id);
+        } else {
+          await createConversation({ silent: true });
+        }
+      } catch {
+        // fallback to creating one locally if listing fails
+        await createConversation({ silent: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleClearChat = () => {
     if (!window.confirm("Are you sure you want to clear all messages in this chat?")) return;
@@ -153,36 +244,56 @@ function App() {
 
   return (
     <Router>
-  <div className="flex h-full w-full bg-bg-main font-sans text-text-primary overflow-hidden">
-        <IconBar onNewChat={handleNewConversation} />
-        <Sidebar
-          conversations={conversations}
-          activeConversationId={activeConversationId}
-          setActiveConversationId={setActiveConversationId}
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-        />
-  <Routes>
-          <Route path="/" element={
-            activeConversation && (
-              <ChatPanel
-                key={activeConversation.id}
-                conversation={activeConversation}
-                onNewMessage={handleNewMessage}
-                onClearChat={handleClearChat}
-                onDeleteLastMessage={handleDeleteLastMessage}
-                onOpenSidebar={() => setIsSidebarOpen(true)}
-                onRenameConversation={handleRenameConversation}
-                showToast={showToast}
+      <Routes>
+        {/* Public landing and auth routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/oauth-finish" element={<OAuthFinish />} />
+
+        {/* Main app routes - with sidebar and iconbar - PROTECTED under /app/* */}
+        <Route path="/app/*" element={
+          <ProtectedRoute>
+            <div className="flex h-full w-full bg-bg-main font-sans text-text-primary overflow-hidden">
+              <Sidebar
+                conversations={conversations}
+                activeConversationId={activeConversationId}
+                setActiveConversationId={setActiveConversationId}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                onNewChat={handleNewConversation}
+                user={user || undefined}
               />
-            )
-          } />
-          <Route path="/settings" element={
-            <Settings config={config} updateConfig={updateConfig} />
-          } />
-        </Routes>
-        <ToastContainer toasts={toasts} onClose={closeToast} />
-      </div>
+              <Routes>
+                <Route path="/" element={
+                  activeConversation && (
+                    <ChatPanel
+                      key={activeConversation.id}
+                      conversation={activeConversation}
+                      onNewMessage={handleNewMessage}
+                      onClearChat={handleClearChat}
+                      onDeleteLastMessage={handleDeleteLastMessage}
+                      onOpenSidebar={() => setIsSidebarOpen(true)}
+                      onRenameConversation={handleRenameConversation}
+                      onDeleteConversation={handleDeleteConversation}
+                      showToast={showToast}
+                    />
+                  )
+                } />
+                <Route path="/settings" element={
+                  <Settings config={config} updateConfig={updateConfig} />
+                } />
+                <Route path="/profile" element={
+                  <Profile />
+                } />
+              </Routes>
+              <ToastContainer toasts={toasts} onClose={closeToast} />
+            </div>
+          </ProtectedRoute>
+        } />
+      </Routes>
     </Router>
   );
 }

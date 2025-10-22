@@ -7,6 +7,7 @@ import ConfirmModal from './ConfirmModal';
 import type { Conversation, Message } from '../App';
 import type { ToastType } from './Toast';
 import { sendChatMessage } from '../utils/api';
+import { appendMessageApi } from '../utils/conversations';
 
 interface ChatPanelProps {
   conversation: Conversation;
@@ -15,6 +16,7 @@ interface ChatPanelProps {
   onDeleteLastMessage: () => void;
   onOpenSidebar?: () => void;
   onRenameConversation: (id: string, newTitle: string) => void;
+  onDeleteConversation: (id: string) => void | Promise<void>;
   showToast: (message: string, type?: ToastType) => void;
 }
 
@@ -31,7 +33,7 @@ const TypingIndicator = () => (
   </div>
 );
 
-export default function ChatPanel({ conversation, onNewMessage, onClearChat, onDeleteLastMessage, onOpenSidebar, onRenameConversation, showToast }: ChatPanelProps) {
+export default function ChatPanel({ conversation, onNewMessage, onClearChat, onDeleteLastMessage, onOpenSidebar, onRenameConversation, onDeleteConversation, showToast }: ChatPanelProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -57,15 +59,24 @@ export default function ChatPanel({ conversation, onNewMessage, onClearChat, onD
   }, [showMoreMenu]);
 
   const handleSendMessage = async (text: string) => {
+    // If this is the first user message in this conversation, use it to name the chat
+    if (conversation.messages.length === 0) {
+      const raw = text.replace(/\s+/g, ' ').trim();
+      const title = raw.length > 60 ? raw.slice(0, 57) + '…' : raw || 'New Conversation';
+      onRenameConversation(conversation.id, title);
+    }
     onNewMessage({ sender: 'user', text });
+    try { await appendMessageApi(conversation.id, 'user', text); } catch { /* ignore UI */ }
     setIsTyping(true);
     try {
       const reply = await sendChatMessage(text);
       onNewMessage({ sender: 'ai', text: reply });
+      try { await appendMessageApi(conversation.id, 'ai', reply); } catch { /* ignore UI */ }
     } catch (err: any) {
       const msg = err?.message || 'Failed to get response from server';
       showToast(msg, 'error');
       onNewMessage({ sender: 'ai', text: `Error: ${msg}` });
+      try { await appendMessageApi(conversation.id, 'ai', `Error: ${msg}`); } catch { /* ignore */ }
     } finally {
       setIsTyping(false);
     }
@@ -123,6 +134,8 @@ export default function ChatPanel({ conversation, onNewMessage, onClearChat, onD
     setShowMoreMenu(false);
     showToast('Conversation exported successfully', 'success');
   };
+
+  // Delete Q+A feature removed per request
 
   const handleDeleteConversation = () => {
     setShowDeleteConfirm(true);
@@ -229,9 +242,9 @@ export default function ChatPanel({ conversation, onNewMessage, onClearChat, onD
         confirmText="Delete"
         cancelText="Cancel"
         isDanger={true}
-        onConfirm={() => {
-          // TODO: Implement actual delete in App.tsx
-          showToast('Delete conversation feature coming soon', 'info');
+        onConfirm={async () => {
+          setShowDeleteConfirm(false);
+          await onDeleteConversation(conversation.id);
         }}
         onCancel={() => setShowDeleteConfirm(false)}
       />

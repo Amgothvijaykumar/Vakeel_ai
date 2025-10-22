@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -15,11 +15,14 @@ interface ToastProps {
 }
 
 export function ToastNotification({ toast, onClose }: ToastProps) {
+  const [isClosing, setIsClosing] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose(toast.id);
-    }, 2000); // Changed from 3000 to 2000ms (2 seconds)
-    return () => clearTimeout(timer);
+    // Total lifetime = 2500ms. Trigger exit animation a bit before removal.
+    const total = 2500;
+    const exitMs = 400; // match CSS exit animation duration
+    const startExit = setTimeout(() => setIsClosing(true), Math.max(0, total - exitMs));
+    const finalize = setTimeout(() => onClose(toast.id), total);
+    return () => { clearTimeout(startExit); clearTimeout(finalize); };
   }, [toast.id, onClose]);
 
   const icons = {
@@ -36,7 +39,7 @@ export function ToastNotification({ toast, onClose }: ToastProps) {
 
   return (
     <div
-      className={`flex items-center gap-3 p-4 rounded-lg border ${bgColors[toast.type]} backdrop-blur-sm shadow-lg animate-slide-in-right min-w-[300px] max-w-md`}
+      className={`flex items-center gap-3 p-4 rounded-lg border ${bgColors[toast.type]} backdrop-blur-sm shadow-lg min-w-[300px] max-w-md ` + (isClosing ? 'animate-toast-exit' : 'animate-slide-in-right')}
     >
       {icons[toast.type]}
       <p className="flex-1 text-sm text-text-primary">{toast.message}</p>

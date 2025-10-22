@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 
 interface RenameModalProps {
@@ -19,7 +19,7 @@ export default function RenameModal({ isOpen, currentTitle, onClose, onRename }:
     }
   }, [isOpen, currentTitle]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (title.trim() && title !== currentTitle) {
       onRename(title.trim());
@@ -27,7 +27,7 @@ export default function RenameModal({ isOpen, currentTitle, onClose, onRename }:
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
     }

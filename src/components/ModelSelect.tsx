@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FC } from 'react';
 import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 // Simplified mock data based on the original project's structure
@@ -30,7 +30,7 @@ interface ModelRowProps {
   onSelectModel: (model: string) => void;
 }
 
-const ModelRow: React.FC<ModelRowProps> = ({ baseModel, variants, onSelectModel }) => {
+const ModelRow: FC<ModelRowProps> = ({ baseModel, variants, onSelectModel }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (

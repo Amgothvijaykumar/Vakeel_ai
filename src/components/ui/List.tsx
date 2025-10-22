@@ -1,6 +1,6 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
-export function List({ children }: { children: React.ReactNode }) {
+export function List({ children }: { children: ReactNode }) {
   return (
     <div className="border border-border-color rounded-lg shadow-sm mb-5 animate-fade-in bg-bg-sidebar">
       {children}
@@ -8,7 +8,7 @@ export function List({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ListItem({ title, subTitle, children }: { title: string; subTitle?: string; children: React.ReactNode }) {
+export function ListItem({ title, subTitle, children }: { title: string; subTitle?: string; children: ReactNode }) {
   return (
     <div className="flex justify-between items-center min-h-[60px] border-b border-border-color p-4 last:border-b-0">
       <div className="flex-grow">

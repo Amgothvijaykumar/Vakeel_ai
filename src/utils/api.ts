@@ -31,12 +31,16 @@ export async function sendChatMessage(query: string, signal?: AbortSignal): Prom
   const timeout = setTimeout(() => controller.abort(), 600000);
   const usedSignal = signal ?? controller.signal;
 
+  // Get auth token from localStorage
+  const token = localStorage.getItem('authToken');
+
   try {
     const res = await fetch(absoluteUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       // Our backend expects a JSON object with a "query" key.
       body: JSON.stringify({ query }),

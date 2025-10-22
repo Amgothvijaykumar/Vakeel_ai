@@ -3,20 +3,29 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig(() => {
-  // Point to your Colab ngrok backend
-  // UPDATE THIS URL whenever ngrok restarts with a new URL
-  const target = 'https://260141486b10.ngrok-free.app'
+  // For local development with MongoDB backend
+  const localBackend = 'http://localhost:5000'
+  
+  // For Colab ngrok backend (uncomment and update when using Colab)
+  const colabTarget = 'https://8adf81265e62.ngrok-free.app'
 
   return {
     plugins: [react()],
     server: {
       port: 5173,
       proxy: {
-        '/api': {
-          target,
+        // Auth endpoints (MongoDB backend)
+        '/auth': {
+          target: localBackend,
           changeOrigin: true,
           secure: false,
-          // Forwards '/api/ask' to 'https://NGROK_URL/ask'
+        },
+        // Chat endpoints (can point to Colab or local)
+        '/api': {
+          target: colabTarget, // Change to colabTarget for Colab
+          changeOrigin: true,
+          secure: false,
+          // If using Colab, rewrite to remove /api prefix
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
